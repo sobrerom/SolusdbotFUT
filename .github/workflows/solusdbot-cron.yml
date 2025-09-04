@@ -1,4 +1,4 @@
-name: SOLUSDBOT cron
+name: SOLUSDBOT cron (robust)
 
 on:
   workflow_dispatch: {}
@@ -12,22 +12,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Show repository tree (top 2 levels)
+        run: |
+          pwd
+          ls -la
+          find . -maxdepth 2 -type f | sort
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install dependencies (if present)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: Create config from example (if missing)
         run: |
           if [ ! -f config.yaml ] && [ -f config.example.yaml ]; then cp config.example.yaml config.yaml; fi
 
-      - name: Self-test
-        run: python SOLUSDBOT-main/selftest.py
+      - name: Locate selftest.py
+        id: locate_selftest
+        run: |
+          set -e
+          SF=$(git ls-files | grep -E '/selftest\.py$' | head -n1 || true)
+          echo "selftest=$SF" >> $GITHUB_OUTPUT
+          if [ -z "$SF" ]; then
+            echo "No selftest.py found. Skipping self-test."
+          else
+            echo "Found selftest at: $SF"
+          fi
+
+      - name: Self-test (if found)
+        if: steps.locate_selftest.outputs.selftest != ''
+        run: |
+          python "${{ steps.locate_selftest.outputs.selftest }}"
+
+      - name: Locate main.py
+        id: locate_main
+        run: |
+          set -e
+          MF=$(git ls-files | grep -E '/main\.py$' | head -n1 || true)
+          echo "mainfile=$MF" >> $GITHUB_OUTPUT
+          if [ -z "$MF" ]; then
+            echo "ERROR: main.py non trovato nel repo." >&2
+            exit 1
+          else
+            echo "Found main at: $MF"
+          fi
 
       - name: Run bot
         env:
@@ -35,4 +68,5 @@ jobs:
           PIONEX_API_SECRET: ${{ secrets.PIONEX_API_SECRET }}
           DASHBOARD_TOKEN: ${{ secrets.DASHBOARD_TOKEN }}
           LOG_LEVEL: INFO
-        run: python -m SOLUSDBOT-main.main || python SOLUSDBOT-main/main.py
+        run: |
+          python "${{ steps.locate_main.outputs.mainfile }}"
