@@ -1,0 +1,13 @@
+exchange: pionex
+base_asset: BTC
+quote_asset: USDT
+grid:
+  min_price: 57000
+  max_price: 63000
+  levels: 60
+trend:
+  sma_window: 20
+  levels_bull: 80
+  levels_bear: 40
+risk:
+  max_position_usdt: 1000
