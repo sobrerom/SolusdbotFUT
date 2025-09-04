@@ -1,0 +1,20 @@
+exchange: pionex
+base_asset: BTC
+quote_asset: USDT
+
+grid:
+  min_price: 58000
+  max_price: 62000
+  levels: 50
+
+trend:
+  sma_window: 20
+  levels_bull: 60
+  levels_bear: 30
+
+risk:
+  max_position_usdt: 500
+
+logging:
+  level: INFO
+  file: logs/solusdbot.log
