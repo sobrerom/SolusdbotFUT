@@ -1,0 +1,119 @@
+name: SOLUSDBOT Grid Manager
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+concurrency:
+  group: grid-manager-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+
+    env:
+      PIONEX_API_KEY: ${{ secrets.PIONEX_API_KEY }}
+      PIONEX_API_SECRET: ${{ secrets.PIONEX_API_SECRET }}
+      DRY_RUN: ${{ vars.DRY_RUN || 'false' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cancel previous runs (in-progress)
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install requests pyyaml; fi
+
+      - name: Run grid manager
+        run: |
+          python - <<'PY'
+          from main import main
+          main()
+          PY
+
+      # === Diagnostics: verifica variabili repo e permessi token ===
+      - name: Verify repo variables & token permissions
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "Branch: $BRANCH"
+          echo "Workflow file: cron.yml"
+          echo "workflow: ${{ github.workflow }}"
+          echo "workflow_ref: ${{ github.workflow_ref }}"   # <repo>@refs/heads/<branch>/.github/workflows/<file>@<sha>
+          echo "DELETE_OLD_RUNS (from vars context) = '${{ vars.DELETE_OLD_RUNS }}'"
+
+          echo "== List Actions variables (requires actions:read) =="
+          gh api repos/$REPO/actions/variables --paginate \
+            --jq '.variables[] | "\(.name)=\(.value)"' || echo "!! cannot read variables (check permissions)"
+
+          echo "== Probe permissions with a harmless write test =="
+          OUT=$(gh api -X DELETE "repos/$REPO/actions/runs/0" 2>&1 || true)
+          echo "$OUT"
+          if echo "$OUT" | grep -q "HTTP 403"; then
+            echo "::error::GITHUB_TOKEN missing 'actions: write' permission for this job."
+            exit 1
+          elif echo "$OUT" | grep -q "HTTP 404"; then
+            echo "::notice::'actions: write' OK (got 404 Not Found as expected)."
+          else
+            echo "::warning::Unexpected response probing write permission."
+          fi
+
+          echo "== Probe actions:read =="
+          gh api repos/$REPO/actions/workflows --silent \
+            && echo "::notice::'actions: read' OK." \
+            || { echo "::error::Cannot list workflows (actions:read missing)"; exit 1; }
+
+      # Cancella TUTTI i run precedenti dello stesso workflow file e branch (tiene solo quello corrente)
+      # Attivo SOLO se la repo variable DELETE_OLD_RUNS == 'true'
+      - name: Cleanup runs (keep only current)
+        # HYBRID DELETE: usa gh run delete --confirm, fallback REST se non supportato
+        if: ${{ always() && vars.DELETE_OLD_RUNS == 'true' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          WF_FILE: cron.yml
+        run: |
+          set -euo pipefail
+          CUR="${{ github.run_id }}"
+          echo "[CLEANUP] branch=$BRANCH workflow=$WF_FILE current=$CUR"
+
+          # Elenca i run per questo workflow file e branch (limite alto)
+          RUN_IDS=$(gh run list \
+                      --workflow "$WF_FILE" \
+                      --branch "$BRANCH" \
+                      --limit 200 \
+                      --json databaseId \
+                      --jq '.[].databaseId')
+
+          if [ -z "${RUN_IDS:-}" ]; then
+            echo "[CLEANUP] Nessun run trovato per $WF_FILE su $BRANCH"; exit 0
+          fi
+
+          # Cancella tutti tranne quello corrente (hybrid: CLI → REST fallback)
+          for ID in $RUN_IDS; do
+            if [ "$ID" = "$CUR" ]; then
+              echo "[CLEANUP] keep current $ID"
+              continue
+            fi
+            echo "[CLEANUP] deleting $ID"
+            gh run delete "$ID" --confirm || gh api -X DELETE "repos/${{ github.repository }}/actions/runs/$ID" || true
+          done

@@ -1,0 +1,39 @@
+name: pionex-ticker-matrix
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        symbol: ["SOLUSDT", "SOL-USDT", "SOL_USDT"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests pyyaml
+
+      - name: Patch config.yaml per simbolo e price_source=pionex
+        run: |
+          python - <<'PY'
+          import yaml, os
+          path = 'config.yaml'
+          with open(path, 'r', encoding='utf-8') as f:
+              cfg = yaml.safe_load(f)
+          cfg['symbol'] = os.environ['SYMBOL']
+          cfg['price_source'] = 'pionex'
+          with open(path, 'w', encoding='utf-8') as f:
+              yaml.safe_dump(cfg, f, sort_keys=False)
+          print('Config aggiornato:', cfg)
+          PY
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+
+      - name: Run main.py con Pionex price
+        run: python main.py
+        env:
+          PIONEX_API_KEY: ${{ secrets.PIONEX_API_KEY }}
+          PIONEX_API_SECRET: ${{ secrets.PIONEX_API_SECRET }}
