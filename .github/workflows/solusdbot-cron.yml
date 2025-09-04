@@ -31,7 +31,7 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Create config from example (if missing)
+      - name: Ensure config (copy example if missing)
         run: |
           if [ ! -f config.yaml ] && [ -f config.example.yaml ]; then cp config.example.yaml config.yaml; fi
 
@@ -43,12 +43,14 @@ jobs:
           if [ ! -f "$EP" ]; then echo "ERROR: entrypoint $EP non trovato"; exit 1; fi
           echo "ep=$EP" >> $GITHUB_OUTPUT
 
-      - name: Run bot (adds SOLUSDBOT-main to PYTHONPATH)
+      - name: Self-test
+        run: python SOLUSDBOT-main/selftest.py || true
+
+      - name: Run bot
         env:
           PIONEX_API_KEY: ${{ secrets.PIONEX_API_KEY }}
           PIONEX_API_SECRET: ${{ secrets.PIONEX_API_SECRET }}
           DASHBOARD_TOKEN: ${{ secrets.DASHBOARD_TOKEN }}
           LOG_LEVEL: INFO
           PYTHONPATH: ${{ github.workspace }}/SOLUSDBOT-main:$PYTHONPATH
-        run: |
-          python "${{ steps.ep.outputs.ep }}"
+        run: python "${{ steps.ep.outputs.ep }}"
