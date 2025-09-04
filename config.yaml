@@ -1,57 +1,16 @@
-pionex:
-
-
-hysteresis:
-confirm_cycles: 3
-cooldown_minutes: 45
-
-
-risk:
-max_total_usdt: 1500
-min_liq_distance_pct: 20
-max_dd_pct: 12
-
-
-trend_filter:
-enabled: true
-interval: 1h
-ma_fast: 50
-ma_slow: 200
-momentum_thr: 0.15
-
-
-volatility:
-adaptive: true
-atr_interval: 1h
-atr_len: 14
-atr_k: 2.0
-
+exchange: pionex
+base_asset: BTC
+quote_asset: USDT
 
 grid:
-symbol: SOLUSDT
-grids: 24
-geometric: true
-lower_pct: 0.08
-upper_pct: 0.08
+  min_price: 58000
+  max_price: 62000
+  levels: 80
 
+trend:
+  sma_window: 30
+  levels_bull: 100
+  levels_bear: 40
 
-performance_target:
-daily_target_pct: 1.0
-controller: pid # none | ramp | pid
-max_boost_mult: 1.5 # usato solo se controller=ramp
-k_sensitivity: 0.6 # usato solo se controller=ramp
-decay_ok_runs: 2 # usato solo se controller=ramp
-suspend_in_high_vol: true
-hard_daily_loss_stop_pct: 3
-pid:
-kp: 0.40
-ki: 0.15
-kd: 0.10
-integrator_min: -0.02
-integrator_max: 0.05
-gain_min_mult: 0.85
-gain_max_mult: 1.60
-smoothing_alpha: 0.5
-lookback_days: 5
-reset_on_big_gain_pct: 3
-weekend_decay: 0.5
+risk:
+  max_position_usdt: 1500
