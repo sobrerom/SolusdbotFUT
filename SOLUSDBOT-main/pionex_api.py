@@ -36,5 +36,8 @@ class PionexAPI:
         st["last_params"] = params
         self._save(st)
 
+    def get_last_params(self) -> Optional[Dict[str, Any]]:
+        return self._load().get("last_params")
+
     def get_prices(self) -> list[float]:
         return self._load().get("prices", [])

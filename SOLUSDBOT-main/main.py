@@ -47,7 +47,7 @@ def load_config() -> Dict[str, Any]:
     for p in (Path.cwd() / "config.yaml", Path.cwd() / "config.example.yaml"):
         if p.exists():
             try:
-                cfg = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+                cfg = yaml.safe_load(p.read_text(encoding='utf-8')) or {}
                 break
             except Exception as e:
                 log.warning("Config parse error on %s: %s", p, e)
