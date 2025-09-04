@@ -3,14 +3,13 @@ from pathlib import Path
 from typing import Any, Dict
 import yaml
 
-# Robust imports: work whether run as script or as package
 try:
-    from .pionex_api import PionexAPI           # when executed as package
+    from .pionex_api import PionexAPI
     from .strategy_hedge_bi import StrategyHedgeBI
     from .data_router import compute_grid
     from .backtester_hedge_bi import backtest
 except ImportError:
-    from pionex_api import PionexAPI            # when executed as script
+    from pionex_api import PionexAPI
     from strategy_hedge_bi import StrategyHedgeBI
     from data_router import compute_grid
     from backtester_hedge_bi import backtest
@@ -25,13 +24,34 @@ logging.basicConfig(
 )
 log = logging.getLogger("solusdbot")
 
+DEFAULTS: Dict[str, Any] = {
+    "exchange": "pionex",
+    "base_asset": "BTC",
+    "quote_asset": "USDT",
+    "grid": {"min_price": 58000, "max_price": 62000, "levels": 50},
+    "trend": {"sma_window": 20, "levels_bull": 60, "levels_bear": 30},
+    "risk": {"max_position_usdt": 500},
+}
+
+def deep_merge(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(a)
+    for k, v in (b or {}).items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
 def load_config() -> Dict[str, Any]:
+    cfg = {}
     for p in (Path.cwd() / "config.yaml", Path.cwd() / "config.example.yaml"):
         if p.exists():
-            return yaml.safe_load(p.read_text(encoding="utf-8"))
-    # fallback safe defaults
-    return {"base_asset":"BTC","quote_asset":"USDT","grid":{"min_price":58000,"max_price":62000,"levels":50},
-            "trend":{"sma_window":20,"levels_bull":60,"levels_bear":30}}
+            try:
+                cfg = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+                break
+            except Exception as e:
+                log.warning("Config parse error on %s: %s", p, e)
+    return deep_merge(DEFAULTS, cfg)
 
 def main() -> None:
     cfg = load_config()
@@ -44,10 +64,12 @@ def main() -> None:
         levels_bull=int(trend.get("levels_bull", 60)),
         levels_bear=int(trend.get("levels_bear", 30)),
     )
-    adj = strat.apply(price, hist, cfg); grid = compute_grid(adj["min_price"], adj["max_price"], adj["levels"])
-    params = {"ticker":ticker,"price":price,**adj,"grid_preview":grid[:5]+['...']+grid[-5:]}
+    adj = strat.apply(price, hist, cfg)
+    grid = compute_grid(adj["min_price"], adj["max_price"], adj["levels"])
+    params = {"ticker": ticker, "price": price, **adj, "grid_preview": grid[:5] + ["..."] + grid[-5:]}
     api.set_grid_params(params)
     bt = backtest(hist[-100:], adj)
+
     log.info("Applied params: %s", json.dumps(params, default=str))
     log.info("Backtest(trailing): %s", bt)
     print(json.dumps({"ok": True, "params": params, "backtest": bt}))
