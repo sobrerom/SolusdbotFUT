@@ -1,0 +1,16 @@
+{
+  "pid": {
+    "kp": 0.9,
+    "ki": 0.08,
+    "kd": 0.02,
+    "target_vol_pct": 0.9
+  },
+  "safe_mode": {
+    "vol_warn_pct": 1.2,
+    "vol_panic_pct": 2.0
+  },
+  "daemon": {
+    "loop_seconds": 6,
+    "exponential_backoff_max_s": 60
+  }
+}

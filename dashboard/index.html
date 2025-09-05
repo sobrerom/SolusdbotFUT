@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SOLUSDBOT – Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>SOLUSDBOT – Dashboard Live</h1>
+      <div class="topbar-right">
+        <span id="status-badge" class="badge">—</span>
+        <button id="refresh-btn" class="btn">Aggiorna</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card grid-2">
+        <div class="card-section">
+          <h2>Stato &amp; Metriche</h2>
+          <div class="metrics">
+            <div class="metric"><span class="label">Ultimo aggiornamento</span><span id="m-ts" class="value">—</span></div>
+            <div class="metric"><span class="label">Mid</span><span id="m-mid" class="value">—</span></div>
+            <div class="metric"><span class="label">Volatilità (realizzata)</span><span id="m-vol" class="value">—</span></div>
+            <div class="metric"><span class="label">Divergenza Cross-Venue</span><span id="m-div" class="value">—</span></div>
+            <div class="metric"><span class="label">Leverage</span><span id="m-lev" class="value">—</span></div>
+            <div class="metric"><span class="label">Banda Grid</span><span id="m-grid" class="value">—</span></div>
+            <div class="metric"><span class="label">Alpha Signal</span><span id="m-alpha" class="value">—</span></div>
+            <div class="metric"><span class="label">Timeframe</span><span id="m-tf" class="value">—</span></div>
+          </div>
+        </div>
+        <div class="card-section">
+          <h2>Variabili &amp; Input Mercato</h2>
+          <div class="kv">
+            <div class="kv-row"><span>Target Vol%</span><code id="kv-target">—</code></div>
+            <div class="kv-row"><span>PID(kp,ki,kd)</span><code id="kv-pid">—</code></div>
+            <div class="kv-row"><span>Safe Mode</span><code id="kv-safe">—</code></div>
+            <div class="kv-row"><span>Loop / Backoff</span><code id="kv-loop">—</code></div>
+            <div class="kv-row"><span>Indicatori</span><code id="kv-ind">—</code></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Ordini Attivi</h2>
+        <div id="open-orders" class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Side</th><th>Price</th><th>Qty</th><th>Status</th><th>Id</th></tr></thead>
+            <tbody id="open-orders-body">
+              <tr><td colspan="6" class="muted">Nessun dato</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Ordini Chiusi (fill)</h2>
+        <div id="closed-orders" class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Side</th><th>Price</th><th>Qty</th><th>PnL</th><th>Id</th></tr></thead>
+            <tbody id="closed-orders-body">
+              <tr><td colspan="6" class="muted">Nessun dato</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Statistiche</h2>
+        <div class="stats-grid">
+          <div class="stat-box"><div class="stat-title">PnL (giorno)</div><div id="s-pnl-day" class="stat-value">—</div></div>
+          <div class="stat-box"><div class="stat-title">Trade # (giorno)</div><div id="s-trades-day" class="stat-value">—</div></div>
+          <div class="stat-box"><div class="stat-title">Win Rate (7d)</div><div id="s-win-7d" class="stat-value">—</div></div>
+          <div class="stat-box"><div class="stat-title">Sharpe (30d)</div><div id="s-sharpe-30d" class="stat-value">—</div></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">© <span id="year"></span> SOLUSDBOT</footer>
+    <script>window.__DASHBOARD_TOKEN__ = "__DASHBOARD_TOKEN__";</script>
+    <script src="./app.js"></script>
+  </body>
+</html>
