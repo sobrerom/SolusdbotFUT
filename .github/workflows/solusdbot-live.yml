@@ -16,12 +16,12 @@ concurrency:
 jobs:
   live:
     runs-on: ubuntu-latest
-    timeout-minutes: 20   # per i test + deploy nello stesso run
+    timeout-minutes: 20
     env:
       LIVE_MODE: "true"
       PIONEX_API_KEY: ${{ secrets.PIONEX_API_KEY }}
       PIONEX_API_SECRET: ${{ secrets.PIONEX_API_SECRET }}
-      PYTHONUNBUFFERED: "1"    # log stdout non bufferizzati
+      PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -35,11 +35,10 @@ jobs:
         shell: bash
         run: |
           if [ -z "${PIONEX_API_KEY}" ] || [ -z "${PIONEX_API_SECRET}" ]; then
-            echo "::error::Missing PIONEX_API_KEY / PIONEX_API_SECRET in repo settings → Settings > Secrets and variables > Actions"
+            echo "::error::Missing PIONEX_API_KEY / PIONEX_API_SECRET"
             exit 1
           fi
 
-      # Limitiamo l'esecuzione del daemon a ~7 minuti per consentire il deploy Pages nel run corrente
       - name: Run daemon (timeout 7m)
         shell: bash
         run: |
@@ -51,19 +50,12 @@ jobs:
           fi
           exit ${EXIT:-0}
 
-      # --- Publish dashboard to GitHub Pages ---
       - name: Prepare site folder (dashboard + json)
         run: |
           rm -rf site
           mkdir -p site/dashboard
           cp -r dashboard/* site/dashboard/
-          # I JSON devono stare alla radice del sito (la dashboard li legge con "../")
           cp -f state.json orders.json config.json site/ 2>/dev/null || true
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
