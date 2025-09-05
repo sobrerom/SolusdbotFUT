@@ -12,7 +12,7 @@ def write_state_report(ts, status, reason, mid, vol_pct, div_bps, extra=None):
         **(extra or {})
     }
     with open("state.json","w") as f: json.dump(payload, f, indent=2)
-    with open("report.json","a") as f: f.write(json.dumps(payload)+"
+    with open("report.json","a") as f: f.write(json.dumps(payload)+"\n")
 ")
 
 def write_orders(open_orders, closed_orders, stats=None):
