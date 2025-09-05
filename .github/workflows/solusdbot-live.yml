@@ -1,0 +1,80 @@
+name: SOLUSDBOT Live
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: solusdbot-live
+  cancel-in-progress: true
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LIVE_MODE: "true"
+      PIONEX_API_KEY: ${{ secrets.PIONEX_API_KEY }}
+      PIONEX_API_SECRET: ${{ secrets.PIONEX_API_SECRET }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - name: Check Pionex secrets
+        shell: bash
+        run: |
+          if [ -z "${PIONEX_API_KEY}" ] || [ -z "${PIONEX_API_SECRET}" ]; then
+            echo "::error::Missing PIONEX_API_KEY / PIONEX_API_SECRET"
+            exit 1
+          fi
+
+      - name: Run daemon (timeout 7m)
+        shell: bash
+        run: |
+          set -e
+          timeout --preserve-status 7m python -u main.py || EXIT=$?
+          if [ "${EXIT:-0}" = "124" ]; then
+            echo "Daemon timed out as planned (7m), continuing to deploy Pages…"
+            EXIT=0
+          fi
+          exit ${EXIT:-0}
+
+      - name: Prepare site folder (dashboard + json)
+        run: |
+          rm -rf site
+          mkdir -p site/dashboard
+          cp -r dashboard/* site/dashboard/
+          cp -f state.json orders.json config.json site/ 2>/dev/null || true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Upload artifacts (state + report + orders)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solusdbot-artifacts
+          path: |
+            state.json
+            report.json
+            orders.json
+            config.json
+          if-no-files-found: ignore
+          retention-days: 7
