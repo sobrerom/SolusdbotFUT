@@ -13,6 +13,7 @@ class Pionex:
             "open_orders":ep.get("open_orders","/api/v1/orders/open"),
             "place_order":ep.get("place_order","/api/v1/order"),
             "cancel_all": ep.get("cancel_all","/api/v1/orders/cancelAll"),
+            "cancel_order":ep.get("cancel_order","/api/v1/order/cancel"),
             "fills":      ep.get("fills","/api/v1/fills"),
         }
         self.h_key  = cfg["pionex"].get("key_header","X-API-KEY")
@@ -40,7 +41,6 @@ class Pionex:
         try: return r.json()
         except Exception: return {"raw": r.text}
 
-    # ----- Public helpers -----
     def market_info(self):
         if self._mktinfo: return self._mktinfo
         try:
@@ -62,9 +62,7 @@ class Pionex:
         step = self.market_info()["step_size"]
         return round(q / step) * step
 
-    # ----- Trading helpers -----
     def sync_replace_grid(self, symbol, lower, upper, levels, qty, price_ref):
-        # cancel all then place symmetric grid
         try:
             self._request("POST", self.paths["cancel_all"], body={"symbol": symbol})
         except Exception:
@@ -72,10 +70,8 @@ class Pionex:
         placed = 0
         step = (upper - lower)/max(1,levels-1)
         for i in range(levels):
-            price = lower + i*step
-            price = self._norm_price(price)
+            price = self._norm_price(lower + i*step)
             q = self._norm_qty(qty)
-            # BUY below mid, SELL above mid (symmetric)
             side = "BUY" if price <= price_ref else "SELL"
             try:
                 self._request("POST", self.paths["place_order"], body={
@@ -87,14 +83,46 @@ class Pionex:
                 continue
         return {"ok": True, "placed": placed}
 
+    def place_breakout_bracket(self, symbol, side, price_ref, qty, sl_price, tp_price, entry_kind="MARKET", reduce_only=True):
+        q = self._norm_qty(qty)
+        try:
+            if entry_kind == "MARKET":
+                self._request("POST", self.paths["place_order"], body={
+                    "symbol": symbol, "side": side, "type":"MARKET",
+                    "quantity": q, "reduceOnly": bool(reduce_only)
+                })
+            else:
+                p = self._norm_price(price_ref)
+                self._request("POST", self.paths["place_order"], body={
+                    "symbol": symbol, "side": side, "type":"LIMIT",
+                    "price": p, "quantity": q, "timeInForce":"IOC", "reduceOnly": bool(reduce_only)
+                })
+        except Exception as e:
+            return {"ok": False, "error": f"entry_failed: {e}"}
+        try:
+            exit_side = "SELL" if side == "BUY" else "BUY"
+            self._request("POST", self.paths["place_order"], body={
+                "symbol": symbol, "side": exit_side, "type":"LIMIT",
+                "price": self._norm_price(tp_price), "quantity": q, "timeInForce":"GTC", "reduceOnly": True
+            })
+        except Exception:
+            pass
+        try:
+            exit_side = "SELL" if side == "BUY" else "BUY"
+            self._request("POST", self.paths["place_order"], body={
+                "symbol": symbol, "side": exit_side, "type":"STOP_MARKET",
+                "stopPrice": self._norm_price(sl_price), "quantity": q, "timeInForce":"GTC", "reduceOnly": True
+            })
+        except Exception:
+            pass
+        return {"ok": True}
+
     def list_open_orders(self, symbol):
         try:
             j = self._request("GET", self.paths["open_orders"], params={"symbol": symbol})
             if isinstance(j, dict) and "orders" in j: return j["orders"]
-            # else try pass-through format
             if isinstance(j, list): return j
-        except Exception:
-            pass
+        except Exception: pass
         return []
 
     def list_recent_fills(self, symbol, limit=50):
@@ -102,24 +130,24 @@ class Pionex:
             j = self._request("GET", self.paths["fills"], params={"symbol": symbol, "limit": limit})
             if isinstance(j, dict) and "fills" in j: return j["fills"]
             if isinstance(j, list): return j
-        except Exception:
-            pass
+        except Exception: pass
         return []
+
+    def cancel_order(self, symbol, order_id):
+        try:
+            return self._request("POST", self.paths["cancel_order"], body={"symbol": symbol, "orderId": order_id})
+        except Exception: return {"ok": False}
 
     def get_portfolio_equity_usdt(self):
         try:
             j = self._request("GET", self.paths["balance"], params={})
-            # try common fields
             if isinstance(j, dict):
                 for k in ["equityUSDT","equity_usdt","totalEquityUSDT","equity"]:
-                    if k in j:
-                        return float(j[k])
-                # maybe balances list
+                    if k in j: return float(j[k])
                 for arr_key in ["balances","assets"]:
                     arr = j.get(arr_key, [])
                     for a in arr:
                         if str(a.get("asset","USDT")).upper()=="USDT" and ("equity" in a or "balance" in a):
                             return float(a.get("equity", a.get("balance")))
-        except Exception:
-            pass
+        except Exception: pass
         return None

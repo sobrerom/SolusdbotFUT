@@ -64,7 +64,6 @@ async def _aggregate_quote():
         vol = 0.0
     return mid, vol, divergence_bps, ts, len(quotes)
 
-# Candles
 async def binance_klines(session, interval="1m", limit=200):
     j = await fetch_json(session, f"{BINANCE_F}/fapi/v1/klines", {"symbol": BINANCE_SYMBOL, "interval": interval, "limit": limit})
     if not j: return []
@@ -99,19 +98,10 @@ def get_candles_sync(timeframe="1m", limit=200):
 
 async def _get_candles(timeframe, limit):
     async with aiohttp.ClientSession() as session:
-        if timeframe == "1m" or timeframe == "1":
-            res = await binance_klines(session, "1m", limit)
-            if res: return res
-            res = await bybit_klines(session, "1", limit)
-            if res: return res
-            res = await okx_klines(session, "1m", limit)
+        if timeframe in ("1m","1"):
+            res = await binance_klines(session, "1m", limit) or await bybit_klines(session, "1", limit) or await okx_klines(session, "1m", limit)
             return res
-        elif timeframe == "5m" or timeframe == "5":
-            res = await binance_klines(session, "5m", limit)
-            if res: return res
-            res = await bybit_klines(session, "5", limit)
-            if res: return res
-            res = await okx_klines(session, "5m", limit)
+        elif timeframe in ("5m","5"):
+            res = await binance_klines(session, "5m", limit) or await bybit_klines(session, "5", limit) or await okx_klines(session, "5m", limit)
             return res
-        else:
-            return []
+        return []

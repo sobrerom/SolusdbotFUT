@@ -3,11 +3,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"
-
 concurrency:
   group: solusdbot-live
   cancel-in-progress: true
-
 jobs:
   live:
     runs-on: ubuntu-latest

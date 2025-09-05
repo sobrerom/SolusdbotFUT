@@ -16,6 +16,7 @@ alpha:
   max_box_range_pct: 2.0
   cooloff_seconds: 900
   daily_trade_target: 6
+  signal_hysteresis_bars: 2
 
 risk:
   max_portfolio_pct: 3.0
@@ -38,6 +39,21 @@ grid:
   levels: 10
   notional_per_side_usdt: 200
 
+trading:
+  mode: "grid"    # "grid" | "breakout"
+  sltp_enabled: true
+  sl_buffer_pct: 0.35
+  tp_rr: 1.5
+  entry_kind: "MARKET"
+  slip_bps: 5
+  reduce_only: true
+
+timeframe_auto:
+  vol_hi_pct: 1.5
+  vol_lo_pct: 0.6
+  warmup_trades: 3
+  stickiness_loops: 5
+
 daemon:
   loop_seconds: 6
   exponential_backoff_max_s: 60
@@ -48,21 +64,25 @@ datafeed:
   quorum: 1
   divergence_bps: 20
 
+websocket:
+  fills_enabled: true
+  url: "wss://stream.pionex.com/fills"
+  headers: {}
+
 pionex:
-  base_url: "https://api.pionex.com"   # aggiorna se diverso
+  base_url: "https://api.pionex.com"
   symbol: "SOL_USDT"
   market: "USDTFUTURE"
   tick_size: null
   step_size: null
-  # Header names personalizzabili (se l'API ne usa di diversi)
   key_header: "X-API-KEY"
   sign_header: "X-API-SIGN"
   ts_header: "X-API-TS"
-  # Paths endpoint (adattabili in caso di differenze API)
   endpoints:
     market_info: "/api/v1/marketInfo"
     balance: "/api/v1/account"
     open_orders: "/api/v1/orders/open"
     place_order: "/api/v1/order"
     cancel_all: "/api/v1/orders/cancelAll"
+    cancel_order: "/api/v1/order/cancel"
     fills: "/api/v1/fills"

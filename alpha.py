@@ -3,18 +3,21 @@ from statistics import pstdev
 
 class AlphaDetector:
     def __init__(self, norm_len=100, box_len=14, strong_close=True,
-                 min_box_range_pct=0.15, max_box_range_pct=2.0):
+                 min_box_range_pct=0.15, max_box_range_pct=2.0, signal_hysteresis_bars=2):
         self.norm_len = norm_len
         self.box_len = box_len
         self.strong_close = strong_close
         self.min_box = min_box_range_pct / 100.0
         self.max_box = max_box_range_pct / 100.0
+        self.hyst = int(signal_hysteresis_bars)
         self.cl = deque(maxlen=max(norm_len, box_len)+5)
         self.hi = deque(maxlen=max(norm_len, box_len)+5)
         self.lo = deque(maxlen=max(norm_len, box_len)+5)
         self.vo = deque(maxlen=200)
         self.box_top = None
         self.box_bot = None
+        self._last_signal = None
+        self._persist = 0
 
     def _norm_vol(self):
         if len(self.cl) < self.norm_len+2: return 0.0
@@ -49,6 +52,14 @@ class AlphaDetector:
         long_break = c > self.box_top and ((self.strong_close and body_mid > self.box_top) or (not self.strong_close))
         short_break = c < self.box_bot and ((self.strong_close and body_mid < self.box_bot) or (not self.strong_close))
         vol_norm = self._norm_vol()
-        if long_break: return "long", self.box_top, self.box_bot, vol_norm
-        if short_break: return "short", self.box_top, self.box_bot, vol_norm
+        sig = None
+        if long_break: sig = "long"
+        elif short_break: sig = "short"
+        if sig == self._last_signal:
+            self._persist += 1
+        else:
+            self._persist = 1
+        self._last_signal = sig
+        if sig and self._persist >= max(1,self.hyst):
+            return sig, self.box_top, self.box_bot, vol_norm
         return None, self.box_top, self.box_bot, vol_norm
