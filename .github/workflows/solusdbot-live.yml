@@ -3,9 +3,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"
+
 concurrency:
   group: solusdbot-live
   cancel-in-progress: true
+
 jobs:
   live:
     runs-on: ubuntu-latest
@@ -16,12 +18,24 @@ jobs:
       PIONEX_API_SECRET: ${{ secrets.PIONEX_API_SECRET }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - run: pip install -r requirements.txt
+
+      - name: Check Pionex secrets
+        shell: bash
+        run: |
+          if [ -z "${PIONEX_API_KEY}" ] || [ -z "${PIONEX_API_SECRET}" ]; then
+            echo "::error::Missing PIONEX_API_KEY / PIONEX_API_SECRET in repo settings → Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+
       - name: Run daemon
         run: python main.py
+
       - name: Upload artifacts (state + report + orders)
         uses: actions/upload-artifact@v4
         with:
