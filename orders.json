@@ -1,0 +1,28 @@
+{
+  "open": [
+    {
+      "id": "A1",
+      "side": "BUY",
+      "price": 154.9,
+      "qty": 0.75,
+      "status": "OPEN",
+      "ts_iso": "2025-09-05T13:22:55Z"
+    }
+  ],
+  "closed": [
+    {
+      "id": "F1",
+      "side": "BUY",
+      "price": 153.1,
+      "qty": 0.8,
+      "pnl": 1.25,
+      "ts_iso": "2025-09-05T13:22:55Z"
+    }
+  ],
+  "stats": {
+    "pnl_day": 2.35,
+    "trades_day": 4,
+    "win_7d": 0.61,
+    "sharpe_30d": 1.42
+  }
+}
