@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "*/15 * * * *"
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 concurrency:
   group: solusdbot-live
   cancel-in-progress: true
@@ -35,6 +40,26 @@ jobs:
 
       - name: Run daemon
         run: python main.py
+
+      # --- Publish dashboard to GitHub Pages ---
+      - name: Prepare site folder (dashboard + json)
+        run: |
+          rm -rf site
+          mkdir -p site/dashboard
+          cp -r dashboard/* site/dashboard/
+          cp -f state.json orders.json config.json site/ 2>/dev/null || true
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
 
       - name: Upload artifacts (state + report + orders)
         uses: actions/upload-artifact@v4
