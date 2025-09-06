@@ -40,63 +40,77 @@ class AlphaDetector:
         except Exception:
             return 0.0
 
-    def update(self, candle):
-        """
-        candle: dict con chiavi 'o','h','l','c','v' (float-like)
-        Ritorna: (signal|None, box_top, box_bot, vol_norm)
-        """
-        o = float(candle.get("o"))
-        h = float(candle.get("h"))
-        l = float(candle.get("l"))
-        c = float(candle.get("c"))
-        v = float(candle.get("v", 0.0))
+def update(self, *args, **kwargs):
+    """
+    Accetta:
+      - update(candle_dict) con chiavi 'o','h','l','c','v'
+      - update(o,h,l,c) oppure update(o,h,l,c,v)
+      - update(o=o,h=h,l=l,c=c,v=v) (kwargs)
+    Ritorna: (signal|None, box_top, box_bot, vol_norm)
+    """
+    # Normalizza input a un dict candle
+    if len(args) == 1 and isinstance(args[0], dict):
+        candle = args[0]
+    elif len(args) >= 4:
+        o, h, l, c = args[:4]
+        v = args[4] if len(args) >= 5 else kwargs.get("v", 0.0)
+        candle = {"o": o, "h": h, "l": l, "c": c, "v": v}
+    else:
+        # supporto kwargs puri
+        try:
+            candle = {
+                "o": kwargs["o"], "h": kwargs["h"],
+                "l": kwargs["l"], "c": kwargs["c"],
+                "v": kwargs.get("v", 0.0)
+            }
+        except KeyError:
+            raise TypeError("AlphaDetector.update(): expected candle dict or (o,h,l,c[,v]).")
 
-        self.cl.append(c)
-        self.hi.append(h)
-        self.lo.append(l)
-        self.vo.append(v)
+    # --- qui sotto resta il corpo esistente della tua update ---
+    o = float(candle.get("o"))
+    h = float(candle.get("h"))
+    l = float(candle.get("l"))
+    c = float(candle.get("c"))
+    v = float(candle.get("v", 0.0))
 
-        if len(self.cl) < self.box_len:
-            return None, self.box_top, self.box_bot, 0.0
+    self.cl.append(c)
+    self.hi.append(h)
+    self.lo.append(l)
+    self.vo.append(v)
 
-        # calcolo box (range rolling sugli ultimi box_len)
-        window_hi = list(self.hi)[-self.box_len:]
-        window_lo = list(self.lo)[-self.box_len:]
-        box_top = max(window_hi)
-        box_bot = min(window_lo)
+    if len(self.cl) < self.box_len:
+        return None, self.box_top, self.box_bot, 0.0
 
-        # forza range in % del close per validità segnale
-        mid = (box_top + box_bot) / 2.0
-        box_range = max(1e-9, box_top - box_bot)
-        box_range_pct = box_range / max(1e-9, mid)
+    window_hi = list(self.hi)[-self.box_len:]
+    window_lo = list(self.lo)[-self.box_len:]
+    box_top = max(window_hi)
+    box_bot = min(window_lo)
 
-        if box_range_pct < self.min_box or box_range_pct > self.max_box:
-            # box troppo stretto o troppo largo → nessun segnale ma aggiorna box
-            self.box_top, self.box_bot = box_top, box_bot
-            self._last_signal = None
-            self._persist = 0
-            return None, self.box_top, self.box_bot, self._norm_vol()
+    mid = (box_top + box_bot) / 2.0
+    box_range = max(1e-9, box_top - box_bot)
+    box_range_pct = box_range / max(1e-9, mid)
 
+    if box_range_pct < self.min_box or box_range_pct > self.max_box:
         self.box_top, self.box_bot = box_top, box_bot
-
-        # corpo candela per "strong close"
-        body_mid = (o + c) / 2.0
-        long_break = c > self.box_top and (not self.strong_close or body_mid > self.box_top)
-        short_break = c < self.box_bot and (not self.strong_close or body_mid < self.box_bot)
-
-        sig = None
-        if long_break:
-            sig = "long"
-        elif short_break:
-            sig = "short"
-
-        if sig == self._last_signal and sig is not None:
-            self._persist += 1
-        else:
-            self._persist = 1
-        self._last_signal = sig
-
-        if sig and self._persist >= max(1, self.hyst):
-            return sig, self.box_top, self.box_bot, self._norm_vol()
-
+        self._last_signal = None
+        self._persist = 0
         return None, self.box_top, self.box_bot, self._norm_vol()
+
+    self.box_top, self.box_bot = box_top, box_bot
+
+    body_mid = (o + c) / 2.0
+    long_break = c > self.box_top and (not self.strong_close or body_mid > self.box_top)
+    short_break = c < self.box_bot and (not self.strong_close or body_mid < self.box_bot)
+
+    sig = "long" if long_break else ("short" if short_break else None)
+
+    if sig == self._last_signal and sig is not None:
+        self._persist += 1
+    else:
+        self._persist = 1
+    self._last_signal = sig
+
+    if sig and self._persist >= max(1, self.hyst):
+        return sig, self.box_top, self.box_bot, self._norm_vol()
+
+    return None, self.box_top, self.box_bot, self._norm_vol()
