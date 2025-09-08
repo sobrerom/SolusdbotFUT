@@ -1,0 +1,40 @@
+name: SOLUSDBOT Diagnostics
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: solusdbot-diag-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Diagnostics (no orders)
+        env:
+          PIONEX_API_KEY: ${{ secrets.PIONEX_API_KEY }}
+          PIONEX_API_SECRET: ${{ secrets.PIONEX_API_SECRET }}
+        run: |
+          python diagnostics.py > diag.json
+      - name: Smoke place (IOC reduceOnly)
+        env:
+          PIONEX_API_KEY: ${{ secrets.PIONEX_API_KEY }}
+          PIONEX_API_SECRET: ${{ secrets.PIONEX_API_SECRET }}
+        run: |
+          python smoke_place.py > smoke.json || true
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: solusdbot-diagnostics
+          path: |
+            diag.json
+            smoke.json
